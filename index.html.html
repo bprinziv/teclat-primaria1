@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aventura al Teclat - Mecanografia Infantil</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Fredoka', cursive, sans-serif;
+            background: linear-gradient(135deg, #a8edd9 0%, #fed6e3 100%);
+            user-select: none;
+        }
+
+        .key-cap {
+            transition: all 0.15s ease;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.15);
+        }
+
+        .key-cap:active, .key-pressed {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.15) !important;
+        }
+
+        .key-target {
+            animation: pulse-glow 1s infinite alternate;
+        }
+
+        @keyframes pulse-glow {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 10px #f59e0b, 0 6px 0 rgba(0,0,0,0.15);
+            }
+            100% {
+                transform: scale(1.08);
+                box-shadow: 0 0 25px #f59e0b, 0 6px 0 #d97706;
+                background-color: #fef08a !important;
+                color: #b45309 !important;
+            }
+        }
+
+        .shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+
+        .bounce-pop {
+            animation: bouncePop 0.4s ease;
+        }
+
+        @keyframes bouncePop {
+            0% { transform: scale(0.8); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* Mides adaptatives per a les tecles */
+        .key-unit {
+            min-width: 2.1rem;
+            height: 3.2rem;
+        }
+        @media (min-width: 640px) {
+            .key-unit {
+                min-width: 3.3rem;
+                height: 4.2rem;
+            }
+        }
+        @media (min-width: 1024px) {
+            .key-unit {
+                min-width: 4rem;
+                height: 4.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="game-container" class="min-h-screen flex flex-col justify-between p-3 md:p-6 max-w-6xl mx-auto">
+    
+    <!-- Capçalera / Barra Superior -->
+    <header class="bg-white/80 backdrop-blur-md rounded-3xl p-4 shadow-lg border-4 border-white flex flex-wrap justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <div class="bg-yellow-400 p-3 rounded-2xl text-white shadow-md">
+                <i class="fa-solid fa-keyboard text-2xl md:text-3xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold text-purple-700 leading-none">Aventura al Teclat</h1>
+                <p class="text-xs md:text-sm text-purple-400 font-semibold">Aprèn jugant • 2n de Primària</p>
+            </div>
+        </div>
+
+        <!-- Marcadors -->
+        <div class="flex items-center gap-4 md:gap-6 bg-purple-50 px-4 py-2 rounded-2xl border-2 border-purple-100">
+            <div class="text-center">
+                <span class="text-xs text-purple-400 font-bold block uppercase">Punts</span>
+                <span id="score" class="text-xl md:text-2xl font-bold text-purple-600">0</span>
+            </div>
+            <div class="h-8 w-0.5 bg-purple-200"></div>
+            <div class="text-center">
+                <span class="text-xs text-purple-400 font-bold block uppercase">Ratxa</span>
+                <span id="streak" class="text-xl md:text-2xl font-bold text-orange-500">🔥 0</span>
+            </div>
+            <div class="h-8 w-0.5 bg-purple-200"></div>
+            <div class="text-center">
+                <span class="text-xs text-purple-400 font-bold block uppercase">Estrelles</span>
+                <span id="stars" class="text-xl md:text-2xl font-bold text-yellow-500">⭐ 0</span>
+            </div>
+        </div>
+
+        <!-- Botó de So -->
+        <button id="toggle-sound" onclick="toggleAudio()" class="bg-purple-100 hover:bg-purple-200 text-purple-700 p-3 rounded-2xl font-bold flex items-center gap-2 transition">
+            <i id="sound-icon" class="fa-solid fa-volume-high text-xl"></i>
+        </button>
+    </header>
+
+    <!-- Zona Central de Joc -->
+    <main class="my-4 flex flex-col items-center justify-center flex-grow">
+        
+        <!-- Seleccionador de Modes -->
+        <div class="flex flex-wrap justify-center gap-2 md:gap-3 mb-6">
+            <button onclick="setMode('all')" id="btn-mode-all" class="mode-btn px-4 py-2 rounded-2xl border-2 border-purple-400 bg-purple-500 text-white font-bold shadow-md transition transform hover:-translate-y-0.5">
+                🔤 Aleatori
+            </button>
+            <button onclick="setMode('row-top')" id="btn-mode-row-top" class="mode-btn px-4 py-2 rounded-2xl border-2 border-blue-200 bg-white text-blue-600 font-bold shadow-sm hover:bg-blue-50 transition">
+                ⬆️ Fila Superior
+            </button>
+            <button onclick="setMode('row-mid')" id="btn-mode-row-mid" class="mode-btn px-4 py-2 rounded-2xl border-2 border-green-200 bg-white text-green-600 font-bold shadow-sm hover:bg-green-50 transition">
+                ↔️ Fila Central
+            </button>
+            <button onclick="setMode('row-bot')" id="btn-mode-row-bot" class="mode-btn px-4 py-2 rounded-2xl border-2 border-pink-200 bg-white text-pink-600 font-bold shadow-sm hover:bg-pink-50 transition">
+                ⬇️ Fila Inferior
+            </button>
+            <button onclick="setMode('words')" id="btn-mode-words" class="mode-btn px-4 py-2 rounded-2xl border-2 border-yellow-300 bg-white text-yellow-600 font-bold shadow-sm hover:bg-yellow-50 transition">
+                📝 Paraules Fàcils
+            </button>
+        </div>
+
+        <!-- Targeta de Desafia Actual -->
+        <div id="challenge-card" class="bg-white rounded-3xl p-6 md:p-8 shadow-xl border-4 border-white text-center min-w-[280px] sm:min-w-[400px] relative overflow-hidden">
+            <!-- Glow background -->
+            <div class="absolute -right-10 -top-10 w-32 h-32 bg-yellow-200 rounded-full blur-2xl opacity-50"></div>
+            <div class="absolute -left-10 -bottom-10 w-32 h-32 bg-pink-200 rounded-full blur-2xl opacity-50"></div>
+
+            <p id="prompt-label" class="text-gray-500 text-base md:text-lg font-semibold mb-2">Prem la lletra!</p>
+            
+            <!-- Contenidor principal de la lletra/paraula activa -->
+            <div id="target-display" class="text-6xl md:text-8xl font-black text-purple-600 tracking-wider my-2 flex justify-center items-center gap-2 min-h-[100px]">
+                <span class="bounce-pop">A</span>
+            </div>
+
+            <!-- Botó de Repetir Veu -->
+            <button onclick="speakTarget()" class="mt-2 text-sm bg-purple-100 hover:bg-purple-200 text-purple-700 px-4 py-2 rounded-full font-bold inline-flex items-center gap-2 transition">
+                <i class="fa-solid fa-volume-high"></i> Torna a escoltar
+            </button>
+        </div>
+
+        <!-- Missatge de feedback -->
+        <div id="feedback-message" class="h-8 mt-3 text-lg font-bold text-purple-700 flex items-center justify-center gap-2">
+            <!-- Missatge dinàmic -->
+        </div>
+    </main>
+
+    <!-- Teclat Virtual a la Pantalla -->
+    <footer class="bg-white/90 backdrop-blur-md rounded-3xl p-3 md:p-5 shadow-2xl border-4 border-white">
+        <div id="keyboard" class="flex flex-col gap-2 max-w-4xl mx-auto">
+            <!-- Fila 1 (Superior) -->
+            <div class="flex justify-center gap-1 sm:gap-2" id="row-1">
+                <!-- Es genera dinàmicament -->
+            </div>
+            <!-- Fila 2 (Central) -->
+            <div class="flex justify-center gap-1 sm:gap-2" id="row-2">
+                <!-- Es genera dinàmicament -->
+            </div>
+            <!-- Fila 3 (Inferior) -->
+            <div class="flex justify-center gap-1 sm:gap-2" id="row-3">
+                <!-- Es genera dinàmicament -->
+            </div>
+            <!-- Fila Barra Espaiadora -->
+            <div class="flex justify-center gap-2 mt-1">
+                <div id="key-SPACE" class="key-cap key-unit bg-amber-100 border-2 border-amber-300 text-amber-800 rounded-2xl flex-1 max-w-md flex items-center justify-center font-bold text-sm sm:text-base cursor-pointer">
+                    ESPAI
+                </div>
+            </div>
+        </div>
+    </footer>
+
+</div>
+
+<!-- Canvas de Confeti -->
+<canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+<script>
+    // Configuració del teclat per files (Amb Ç inclosa per al català)
+    const KEYBOARD_ROWS = {
+        top: ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+        mid: ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Ç'],
+        bot: ['Z', 'X', 'C', 'V', 'B', 'N', 'M']
+    };
+
+    // Paraules curtes i senzilles en català per a 2n de primària
+    const SIMPLE_WORDS = [
+        "SOL", "MAR", "GAT", "PA", "CEL", "MA", "CASA", "PEIX", 
+        "BON", "SO", "FLOR", "RIU", "PIS", "PARE", "MARE", "GOS"
+    ];
+
+    // Estils acolorits per files
+    const ROW_STYLES = {
+        top: 'bg-blue-100 border-blue-300 text-blue-700 hover:bg-blue-200',
+        mid: 'bg-emerald-100 border-emerald-300 text-emerald-700 hover:bg-emerald-200',
+        bot: 'bg-pink-100 border-pink-300 text-pink-700 hover:bg-pink-200'
+    };
+
+    // Estat del joc
+    let currentMode = 'all'; 
+    let currentTarget = ''; 
+    let wordProgressIndex = 0; 
+    let score = 0;
+    let streak = 0;
+    let stars = 0;
+    let audioEnabled = true;
+
+    // Web Audio API Context
+    let audioCtx = null;
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    // Efectes de So amb Web Audio API
+    function playSound(type) {
+        if (!audioEnabled) return;
+        initAudio();
+        
+        const now = audioCtx.currentTime;
+
+        if (type === 'success') {
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            notes.forEach((freq, idx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                gain.gain.setValueAtTime(0.15, now + idx * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.2);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now + idx * 0.08);
+                osc.stop(now + idx * 0.08 + 0.25);
+            });
+        } else if (type === 'error') {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(220, now);
+            osc.frequency.exponentialRampToValueAtTime(110, now + 0.2);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now);
+            osc.stop(now + 0.2);
+        } else if (type === 'word-complete') {
+            const notes = [440, 554.37, 659.25, 880];
+            notes.forEach((freq, idx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+                gain.gain.setValueAtTime(0.2, now + idx * 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.4);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now + idx * 0.1);
+                osc.stop(now + idx * 0.1 + 0.45);
+            });
+        }
+    }
+
+    // Veu en català mitjançant SpeechSynthesis (ca-ES)
+    function speak(text) {
+        if (!audioEnabled || !('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel(); 
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ca-ES';
+        utterance.rate = 0.9; // Velocitat pausada i adequada per a infants
+        utterance.pitch = 1.1; 
+        window.speechSynthesis.speak(utterance);
+    }
+
+    // Dibuixar el Teclat Virtual
+    function renderKeyboard() {
+        const renderRow = (keys, containerId, styleClass) => {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            keys.forEach(key => {
+                const keyEl = document.createElement('div');
+                keyEl.id = `key-${key}`;
+                keyEl.className = `key-cap key-unit ${styleClass} border-2 rounded-2xl flex items-center justify-center font-bold text-lg sm:text-2xl cursor-pointer select-none`;
+                keyEl.innerText = key;
+                keyEl.onclick = () => handleInput(key);
+                container.appendChild(keyEl);
+            });
+        };
+
+        renderRow(KEYBOARD_ROWS.top, 'row-1', ROW_STYLES.top);
+        renderRow(KEYBOARD_ROWS.mid, 'row-2', ROW_STYLES.mid);
+        renderRow(KEYBOARD_ROWS.bot, 'row-3', ROW_STYLES.bot);
+    }
+
+    // Canviar mode de joc
+    function setMode(mode) {
+        currentMode = mode;
+        
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.className = 'mode-btn px-4 py-2 rounded-2xl border-2 border-gray-200 bg-white text-gray-600 font-bold shadow-sm hover:bg-gray-50 transition';
+        });
+
+        const activeBtn = document.getElementById(`btn-mode-${mode}`);
+        if (activeBtn) {
+            activeBtn.className = 'mode-btn px-4 py-2 rounded-2xl border-2 border-purple-500 bg-purple-600 text-white font-bold shadow-md transform -translate-y-0.5 transition';
+        }
+
+        nextChallenge();
+    }
+
+    // Obtenir la lletra requerida actual
+    function getRequiredLetter() {
+        if (currentMode === 'words') {
+            return currentTarget[wordProgressIndex];
+        }
+        return currentTarget;
+    }
+
+    // Següent lletra o paraula
+    function nextChallenge() {
+        wordProgressIndex = 0;
+        let pool = [];
+
+        if (currentMode === 'all') {
+            pool = [...KEYBOARD_ROWS.top, ...KEYBOARD_ROWS.mid, ...KEYBOARD_ROWS.bot];
+        } else if (currentMode === 'row-top') {
+            pool = KEYBOARD_ROWS.top;
+        } else if (currentMode === 'row-mid') {
+            pool = KEYBOARD_ROWS.mid;
+        } else if (currentMode === 'row-bot') {
+            pool = KEYBOARD_ROWS.bot;
+        } else if (currentMode === 'words') {
+            let newWord = currentTarget;
+            while (newWord === currentTarget) {
+                newWord = SIMPLE_WORDS[Math.floor(Math.random() * SIMPLE_WORDS.length)];
+            }
+            currentTarget = newWord;
+            updateDisplay();
+            speakTarget();
+            highlightTargetKey();
+            return;
+        }
+
+        let newLetter = currentTarget;
+        while (newLetter === currentTarget && pool.length > 1) {
+            newLetter = pool[Math.floor(Math.random() * pool.length)];
+        }
+        currentTarget = newLetter;
+
+        updateDisplay();
+        speakTarget();
+        highlightTargetKey();
+    }
+
+    // Actualitzar el plafó interactiu
+    function updateDisplay() {
+        const display = document.getElementById('target-display');
+        const label = document.getElementById('prompt-label');
+
+        if (currentMode === 'words') {
+            label.innerText = 'Escriu la paraula!';
+            let html = '';
+            for (let i = 0; i < currentTarget.length; i++) {
+                const char = currentTarget[i];
+                if (i < wordProgressIndex) {
+                    html += `<span class="text-green-500 underline decoration-4 underline-offset-8">${char}</span>`;
+                } else if (i === wordProgressIndex) {
+                    html += `<span class="text-purple-600 font-extrabold animate-pulse underline decoration-yellow-400 decoration-4 underline-offset-8">${char}</span>`;
+                } else {
+                    html += `<span class="text-gray-300">${char}</span>`;
+                }
+            }
+            display.innerHTML = html;
+        } else {
+            label.innerText = 'Prem la lletra!';
+            display.innerHTML = `<span class="bounce-pop">${currentTarget}</span>`;
+        }
+    }
+
+    // Il·luminar la tecla objectiu al teclat virtual
+    function highlightTargetKey() {
+        document.querySelectorAll('.key-cap').forEach(el => {
+            el.classList.remove('key-target');
+        });
+
+        const reqLetter = getRequiredLetter();
+        const keyEl = document.getElementById(`key-${reqLetter}`);
+        if (keyEl) {
+            keyEl.classList.add('key-target');
+        }
+    }
+
+    // Locució en català
+    function speakTarget() {
+        const req = getRequiredLetter();
+        if (currentMode === 'words' && wordProgressIndex === 0) {
+            speak(`Escriu la paraula ${currentTarget}. Primer la lletra ${req}`);
+        } else {
+            speak(`Ara prem la lletra ${req}`);
+        }
+    }
+
+    // Gestió de l'entrada (Teclat Físic o Tàctil)
+    function handleInput(inputKey) {
+        initAudio();
+        const keyUpper = inputKey.toUpperCase();
+        const required = getRequiredLetter();
+
+        const keyEl = document.getElementById(`key-${keyUpper}`);
+        if (keyEl) {
+            keyEl.classList.add('key-pressed');
+            setTimeout(() => keyEl.classList.remove('key-pressed'), 150);
+        }
+
+        if (keyUpper === required) {
+            // --- ENCERT ---
+            playSound('success');
+            score += 10;
+            streak += 1;
+            
+            if (streak % 5 === 0) {
+                stars += 1;
+                triggerConfetti();
+                showFeedback('⭐ Quina bona ratxa! ⭐');
+            } else {
+                showFeedback('Molt bé! 👍');
+            }
+
+            if (currentMode === 'words') {
+                wordProgressIndex++;
+                if (wordProgressIndex >= currentTarget.length) {
+                    // Paraula completada
+                    playSound('word-complete');
+                    score += 20;
+                    showFeedback('Paraula completada! 🎉');
+                    triggerConfetti();
+                    setTimeout(nextChallenge, 1200);
+                } else {
+                    updateDisplay();
+                    highlightTargetKey();
+                    speakTarget();
+                }
+            } else {
+                setTimeout(nextChallenge, 500);
+            }
+
+        } else {
+            // --- ERROR ---
+            playSound('error');
+            streak = 0;
+            showFeedback(`Gairebé! Cerca la lletra ${required} 🔍`, true);
+            
+            const card = document.getElementById('challenge-card');
+            card.classList.add('shake');
+            setTimeout(() => card.classList.remove('shake'), 400);
+
+            speak(`Ups. Prem la lletra ${required}`);
+        }
+
+        updateStats();
+    }
+
+    // Actualitzar valors dels marcadors
+    function updateStats() {
+        document.getElementById('score').innerText = score;
+        document.getElementById('streak').innerText = `🔥 ${streak}`;
+        document.getElementById('stars').innerText = `⭐ ${stars}`;
+    }
+
+    // Mostrar feedback visual
+    function showFeedback(msg, isError = false) {
+        const fb = document.getElementById('feedback-message');
+        fb.innerText = msg;
+        fb.className = `h-8 mt-3 text-lg font-bold flex items-center justify-center gap-2 ${isError ? 'text-red-500' : 'text-emerald-600'} bounce-pop`;
+    }
+
+    // Activar / Desactivar So
+    function toggleAudio() {
+        audioEnabled = !audioEnabled;
+        const icon = document.getElementById('sound-icon');
+        if (audioEnabled) {
+            icon.className = 'fa-solid fa-volume-high text-xl';
+        } else {
+            icon.className = 'fa-solid fa-volume-xmark text-xl text-gray-400';
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        }
+    }
+
+    // Escuchador de teclat físic
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            e.preventDefault();
+        }
+        
+        let key = e.key;
+        if (key === ' ') key = 'SPACE';
+        
+        if (key.length === 1 && key.match(/[a-zA-ZçÇñÑ]/i)) {
+            handleInput(key);
+        }
+    });
+
+    // Confeti interactiu amb Canvas
+    function triggerConfetti() {
+        const canvas = document.getElementById('confetti-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const particles = [];
+        const colors = ['#f59e0b', '#ec4899', '#3b82f6', '#10b981', '#8b5cf6'];
+
+        for (let i = 0; i < 60; i++) {
+            particles.push({
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                vx: (Math.random() - 0.5) * 12,
+                vy: (Math.random() - 0.7) * 12,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                size: Math.random() * 8 + 4,
+                life: 100
+            });
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let active = false;
+
+            particles.forEach(p => {
+                if (p.life > 0) {
+                    active = true;
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.3;
+                    p.life -= 2;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+
+            if (active) {
+                requestAnimationFrame(animate);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+        animate();
+    }
+
+    // Inicialització
+    window.onload = () => {
+        renderKeyboard();
+        setMode('all');
+    };
+</script>
+</body>
+</html>
